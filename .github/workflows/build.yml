@@ -1,0 +1,130 @@
+name: MD Viewer (Windows build)
+
+# 目的:
+#   MD Viewer (Windows 用スタンドアロン Markdown ビューア) を windows-latest で
+#   単一 exe + Inno Setup インストーラとして publish し、Artifact に添付する。
+#   タグ `v*` を push した場合は GitHub Release を作成して exe / インストーラを添付する。
+#   secret 不要。
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch: {}
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write   # Release 作成用 (tag push 時のみ使用)
+
+jobs:
+  test-renderer:
+    name: Renderer unit tests (Node)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run render.js tests
+        run: node --test tests/render.test.mjs
+
+  build-windows:
+    name: Publish MdViewer.exe (win-x64)
+    runs-on: windows-latest
+    needs: test-renderer
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore MdViewer/MdViewer.csproj
+
+      - name: Build (Release)
+        run: dotnet build MdViewer/MdViewer.csproj -c Release --no-restore
+
+      - name: Publish single-file exe
+        run: dotnet publish MdViewer/MdViewer.csproj -c Release --no-build -o publish
+
+      - name: Smoke check (exe exists, version resource)
+        shell: pwsh
+        run: |
+          $exe = Get-Item publish/MdViewer.exe
+          "size: {0:N0} bytes" -f $exe.Length
+          $exe.VersionInfo | Format-List ProductName, ProductVersion, FileDescription
+          Get-ChildItem publish
+
+      - name: Upload artifact (portable exe)
+        uses: actions/upload-artifact@v4
+        with:
+          name: MdViewer-win-x64
+          path: publish/MdViewer.exe
+          if-no-files-found: error
+          retention-days: 30
+
+      # ---- インストーラ (Inno Setup / windows-latest にプリインストール) ----
+      - name: Read app version from csproj
+        id: ver
+        shell: pwsh
+        run: |
+          $v = ([xml](Get-Content MdViewer/MdViewer.csproj)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+          "version=$v" >> $env:GITHUB_OUTPUT
+          "app version: $v"
+
+      - name: Download WebView2 Evergreen bootstrapper
+        shell: pwsh
+        run: |
+          # WebView2 が無い PC 向けに同梱 (約 2 MB)。ランタイムが既にある PC では実行されない。
+          Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/p/?LinkId=2124703" -OutFile MicrosoftEdgeWebView2Setup.exe
+          Get-Item MicrosoftEdgeWebView2Setup.exe | Format-List Name, Length
+
+      - name: Build installer (Inno Setup)
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { throw "ISCC.exe not found: $iscc" }
+          & $iscc `
+            "/DSourceDir=$PWD\publish" `
+            "/DOutputDir=$PWD\installer-out" `
+            "/DAppVersion=${{ steps.ver.outputs.version }}" `
+            "/DWebView2Bootstrapper=$PWD\MicrosoftEdgeWebView2Setup.exe" `
+            installer/MdViewer.iss
+          Get-ChildItem installer-out
+
+      - name: Upload artifact (installer)
+        uses: actions/upload-artifact@v4
+        with:
+          name: MdViewer-Setup
+          path: installer-out/MdViewer-Setup-*.exe
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Zip for release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: Compress-Archive -Path publish/MdViewer.exe, README.md -DestinationPath MdViewer-win-x64.zip
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: MD Viewer ${{ github.ref_name }}
+          body: |
+            Windows 用スタンドアロン Markdown ビューア。
+
+            - **インストーラ版**: `MdViewer-Setup-x.y.z.exe` — スタートメニュー登録・.md 関連付け・アンインストール対応。管理者権限不要 (全ユーザ向けも選択可)。
+            - **ポータブル版**: `MdViewer.exe` をダウンロードして任意のフォルダに置くだけで動作します (インストール不要)。
+            - 必要条件: Windows 10/11 (x64)。Microsoft Edge WebView2 ランタイムが無い PC ではインストーラが自動導入します。
+            - 使い方は同梱の README.md を参照。
+          files: |
+            installer-out/MdViewer-Setup-*.exe
+            MdViewer-win-x64.zip
+            publish/MdViewer.exe

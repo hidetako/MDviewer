@@ -2,7 +2,7 @@
 ;
 ; ビルド (Windows / Inno Setup 6):
 ;   ISCC.exe /DSourceDir=<publish dir> /DAppVersion=0.1.0 ^
-;            /DWebView2Bootstrapper=<MicrosoftEdgeWebView2Setup.exe のパス> tools\md-viewer\installer\MdViewer.iss
+;            /DWebView2Bootstrapper=<MicrosoftEdgeWebView2Setup.exe のパス> installer\MdViewer.iss
 ;
 ; 既定は「現在のユーザのみ」(管理者権限不要、%LOCALAPPDATA%\Programs\MD Viewer)。
 ; 起動時のダイアログで「すべてのユーザ」(Program Files) も選べる。

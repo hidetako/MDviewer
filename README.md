@@ -23,7 +23,7 @@ Web アプリではなく、各 PC に `MdViewer.exe` を 1 つ置くだけで�
 | **ポータブル版** | `MdViewer.exe` (Artifact `MdViewer-win-x64`) | USB メモリや共有フォルダに置いて使う。インストール不要 |
 
 どちらも GitHub の **Actions → "MD Viewer (Windows build)"** の最新実行ページ下部の **Artifacts**、
-または **Releases** の `md-viewer-vX.Y.Z` からダウンロードできます。
+または **Releases** の `vX.Y.Z` からダウンロードできます。
 
 **インストーラ版**
 
@@ -87,7 +87,8 @@ Web アプリではなく、各 PC に `MdViewer.exe` を 1 つ置くだけで�
 ### 構成
 
 ```
-tools/md-viewer/
+MDviewer/
+├─ .github/workflows/build.yml  # CI: Node テスト → windows-latest で exe / インストーラ生成 → Artifact / Release
 ├─ MdViewer/                 # C# (.NET 8 WinForms) ホスト
 │  ├─ MdViewer.csproj
 │  ├─ Program.cs             # エントリ。--register / --unregister CLI も処理
@@ -113,7 +114,7 @@ UI のロジックは全て HTML/JS 側にあるので、見た目の調整は `
 ### ローカルビルド (Windows)
 
 ```powershell
-dotnet publish tools/md-viewer/MdViewer/MdViewer.csproj -c Release -o publish
+dotnet publish MdViewer/MdViewer.csproj -c Release -o publish
 ```
 
 `publish\MdViewer.exe` が生成されます。Linux/macOS からも `EnableWindowsTargeting` を有効にしているため
@@ -122,32 +123,23 @@ dotnet publish tools/md-viewer/MdViewer/MdViewer.csproj -c Release -o publish
 ### テスト
 
 ```bash
-node --test tools/md-viewer/tests/render.test.mjs
+node --test tests/render.test.mjs
 ```
 
 ### CI / リリース
 
-- `.github/workflows/md-viewer-build.yml`
-  - `tools/md-viewer/**` を触る PR / main への push で Node テスト → windows-latest で publish → Artifact `MdViewer-win-x64` (ポータブル exe) と `MdViewer-Setup` (インストーラ)
+- `.github/workflows/build.yml`
+  - PR / main への push で Node テスト → windows-latest で publish → Artifact `MdViewer-win-x64` (ポータブル exe) と `MdViewer-Setup` (インストーラ)
   - インストーラは Inno Setup 6 (`installer/MdViewer.iss`) で生成。ローカルで作る場合は Inno Setup を入れて
-    `ISCC.exe /DSourceDir=publish /DAppVersion=0.1.0 tools\md-viewer\installer\MdViewer.iss`
-  - タグ `md-viewer-vX.Y.Z` を push すると **GitHub Release** を作成し `MdViewer.exe` と zip を添付
+    `ISCC.exe /DSourceDir=publish /DAppVersion=0.1.0 installer\MdViewer.iss`
+  - タグ `vX.Y.Z` を push すると **GitHub Release** を作成し インストーラ / `MdViewer.exe` / zip を添付
 - バージョンは `MdViewer.csproj` の `<Version>` を更新してからタグを打つ
 
 ```powershell
-git tag md-viewer-v0.1.0
-git push origin md-viewer-v0.1.0
+git tag v0.1.0
+git push origin v0.1.0
 ```
 
-### 別リポジトリへの切り出し
-
-このツールは本リポジトリ (ストレスチェック事業) とは独立しています。専用リポジトリに移す場合:
-
-```powershell
-git subtree split --prefix tools/md-viewer -b md-viewer-only
-```
-
-で履歴付きのブランチが得られます。その際は `.github/workflows/md-viewer-build.yml` のパス (`tools/md-viewer/` 部分) を修正してください。
 
 ---
 
