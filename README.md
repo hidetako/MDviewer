@@ -15,12 +15,29 @@ Web アプリではなく、各 PC に `MdViewer.exe` を 1 つ置くだけで�
 
 ## 使い方
 
-### 入手
+### 入手 (2 通り)
 
-1. GitHub の **Actions → "MD Viewer (Windows build)"** の最新実行から Artifact `MdViewer-win-x64` をダウンロード
-   (または **Releases** の `md-viewer-vX.Y.Z` から `MdViewer.exe`)
-2. 任意のフォルダ (例: `C:\Tools\MdViewer\`) に `MdViewer.exe` を置く
-3. 初回起動時に Windows の SmartScreen 警告が出た場合は「詳細情報」→「実行」
+| 形態 | ファイル | 向き |
+|---|---|---|
+| **インストーラ版** | `MdViewer-Setup-X.Y.Z.exe` (Artifact `MdViewer-Setup`) | 普段使いの PC。スタートメニュー / デスクトップに登録、`.md` ダブルクリックで開く、「アプリと機能」からアンインストール可 |
+| **ポータブル版** | `MdViewer.exe` (Artifact `MdViewer-win-x64`) | USB メモリや共有フォルダに置いて使う。インストール不要 |
+
+どちらも GitHub の **Actions → "MD Viewer (Windows build)"** の最新実行ページ下部の **Artifacts**、
+または **Releases** の `md-viewer-vX.Y.Z` からダウンロードできます。
+
+**インストーラ版**
+
+1. `MdViewer-Setup-X.Y.Z.exe` を実行 (SmartScreen 警告が出たら「詳細情報」→「実行」)
+2. 「現在のユーザのみ」(管理者権限不要、`%LOCALAPPDATA%\Programs\MD Viewer`) か「すべてのユーザ」(`Program Files`) を選択
+3. 「.md / .markdown ファイルを MD Viewer で開く」にチェックを入れると関連付けまで行います
+   (他のアプリが既に既定になっている場合は上書きせず、「プログラムから開く」候補への追加のみ)
+4. WebView2 ランタイムが無い PC では自動でインストールします (この時だけネット接続が必要)
+5. アンインストールは Windows の「設定 → アプリ → インストールされているアプリ」から
+
+**ポータブル版**
+
+1. 任意のフォルダ (例: `C:\Tools\MdViewer\`) に `MdViewer.exe` を置く
+2. 初回起動時に Windows の SmartScreen 警告が出た場合は「詳細情報」→「実行」
 
 ### 開く
 
@@ -84,6 +101,7 @@ tools/md-viewer/
 │     ├─ index.html / app.css / app.js   # 画面・操作
 │     ├─ render.js                        # Markdown→HTML 純粋ロジック (Node テスト対象)
 │     └─ vendor/                          # markdown-it, highlight.js, mermaid, DOMPurify, github-markdown-css
+├─ installer/MdViewer.iss    # Inno Setup インストーラ定義 (CI の windows-latest でコンパイル)
 ├─ tests/render.test.mjs     # node --test (依存なし)
 ├─ samples/sample.md         # 動作確認用
 └─ README.md
@@ -110,7 +128,9 @@ node --test tools/md-viewer/tests/render.test.mjs
 ### CI / リリース
 
 - `.github/workflows/md-viewer-build.yml`
-  - `tools/md-viewer/**` を触る PR / main への push で Node テスト → windows-latest で publish → Artifact `MdViewer-win-x64`
+  - `tools/md-viewer/**` を触る PR / main への push で Node テスト → windows-latest で publish → Artifact `MdViewer-win-x64` (ポータブル exe) と `MdViewer-Setup` (インストーラ)
+  - インストーラは Inno Setup 6 (`installer/MdViewer.iss`) で生成。ローカルで作る場合は Inno Setup を入れて
+    `ISCC.exe /DSourceDir=publish /DAppVersion=0.1.0 tools\md-viewer\installer\MdViewer.iss`
   - タグ `md-viewer-vX.Y.Z` を push すると **GitHub Release** を作成し `MdViewer.exe` と zip を添付
 - バージョンは `MdViewer.csproj` の `<Version>` を更新してからタグを打つ
 
