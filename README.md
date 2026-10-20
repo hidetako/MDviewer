@@ -132,13 +132,11 @@ node --test tests/render.test.mjs
   - PR / main への push で Node テスト → windows-latest で publish → Artifact `MdViewer-win-x64` (ポータブル exe) と `MdViewer-Setup` (インストーラ)
   - インストーラは Inno Setup 6 (`installer/MdViewer.iss`) で生成。ローカルで作る場合は Inno Setup を入れて
     `ISCC.exe /DSourceDir=publish /DAppVersion=0.1.0 installer\MdViewer.iss`
-  - タグ `vX.Y.Z` を push すると **GitHub Release** を作成し インストーラ / `MdViewer.exe` / zip を添付
-- バージョンは `MdViewer.csproj` の `<Version>` を更新してからタグを打つ
-
-```powershell
-git tag v0.1.0
-git push origin v0.1.0
-```
+  - **Release の作り方 (3 通り、どれでも可)**
+  1. `MdViewer/MdViewer.csproj` の `<Version>` を上げて main に push → 対応する `v<Version>` の Release が無ければ **自動作成** (通常はこれだけ)
+  2. タグ `vX.Y.Z` を push
+  3. Actions → "MD Viewer (Windows build)" → Run workflow → `release_tag` に `vX.Y.Z` を入力
+- Release には インストーラ / `MdViewer.exe` / zip が添付される
 
 
 ---

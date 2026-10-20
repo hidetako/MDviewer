@@ -112,19 +112,41 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+      # ---- Release 判定 ----
+      #  (a) タグ v* の push
+      #  (b) workflow_dispatch で release_tag 指定
+      #  (c) main への push で、csproj の Version に対応する Release (v<Version>) がまだ無い
+      - name: Decide release tag
+        id: rel
+        if: github.event_name != 'pull_request'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = ''
+          if ("${{ github.ref }}".StartsWith('refs/tags/v')) { $tag = "${{ github.ref_name }}" }
+          elseif ("${{ inputs.release_tag }}" -ne '') { $tag = "${{ inputs.release_tag }}" }
+          elseif ("${{ github.ref }}" -eq 'refs/heads/main') {
+            $cand = "v${{ steps.ver.outputs.version }}"
+            gh release view $cand --repo "${{ github.repository }}" *> $null
+            if ($LASTEXITCODE -ne 0) { $tag = $cand } else { "release $cand already exists; skip" }
+          }
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          if ($tag) { "will create release: $tag" }
+
       - name: Zip for release
-        if: startsWith(github.ref, 'refs/tags/v') || inputs.release_tag != ''
+        if: steps.rel.outputs.tag != ''
         shell: pwsh
         run: Compress-Archive -Path publish/MdViewer.exe, README.md -DestinationPath MdViewer-win-x64.zip
 
       - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v') || inputs.release_tag != ''
+        if: steps.rel.outputs.tag != ''
         uses: softprops/action-gh-release@v2
         with:
-          # tag push か、workflow_dispatch の release_tag 入力 (タグが無ければこのコミットに作成される)
-          tag_name: ${{ inputs.release_tag || github.ref_name }}
+          # タグが無ければこのコミットに作成される
+          tag_name: ${{ steps.rel.outputs.tag }}
           target_commitish: ${{ github.sha }}
-          name: MD Viewer ${{ inputs.release_tag || github.ref_name }}
+          name: MD Viewer ${{ steps.rel.outputs.tag }}
           body: |
             Windows 用スタンドアロン Markdown ビューア。
 
