@@ -104,13 +104,17 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChang
 Type: filesandordirs; Name: "{localappdata}\MdViewer"
 
 [Code]
+// (Pascal Script は関数内 const を受け付けないためグローバルに置く)
+const
+  WebView2ClientKey = 'Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}';
+
 // WebView2 Evergreen ランタイムの有無を EdgeUpdate のレジストリで判定
 function WebView2Installed: Boolean;
 var
   Ver: String;
-const
-  ClientKey = 'Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}';
+  ClientKey: String;
 begin
+  ClientKey := WebView2ClientKey;
   Result := False;
   if RegQueryStringValue(HKLM, 'SOFTWARE\WOW6432Node\' + ClientKey, 'pv', Ver) and (Ver <> '') and (Ver <> '0.0.0.0') then
     Result := True
