@@ -133,6 +133,8 @@ jobs:
           }
           "tag=$tag" >> $env:GITHUB_OUTPUT
           if ($tag) { "will create release: $tag" }
+          # gh release view の「見つからない」(exit 1) をステップの失敗にしない
+          exit 0
 
       - name: Zip for release
         if: steps.rel.outputs.tag != ''
