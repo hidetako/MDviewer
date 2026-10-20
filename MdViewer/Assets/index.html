@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MD Viewer</title>
+<link rel="stylesheet" href="vendor/github-markdown-light.css" id="css-md-light">
+<link rel="stylesheet" href="vendor/github-markdown-dark.css" id="css-md-dark" disabled>
+<link rel="stylesheet" href="vendor/hljs-github.min.css" id="css-hljs-light">
+<link rel="stylesheet" href="vendor/hljs-github-dark.min.css" id="css-hljs-dark" disabled>
+<link rel="stylesheet" href="app.css">
+</head>
+<body data-theme="light">
+
+<header id="toolbar">
+  <button id="btn-open" title="開く (Ctrl+O)">開く</button>
+  <div class="dropdown">
+    <button id="btn-recent" title="最近開いたファイル">最近 ▾</button>
+    <ul id="recent-menu" class="menu" hidden></ul>
+  </div>
+  <button id="btn-reload" title="再読み込み (F5)">再読込</button>
+  <span class="sep"></span>
+  <button id="btn-toc" title="目次の表示/非表示 (Ctrl+B)">目次</button>
+  <button id="btn-theme" title="ライト/ダーク切替 (Ctrl+D)">テーマ</button>
+  <button id="btn-zoom-out" title="文字を小さく (Ctrl+-)">A-</button>
+  <span id="zoom-label" title="文字サイズ (Ctrl+0 でリセット)">100%</span>
+  <button id="btn-zoom-in" title="文字を大きく (Ctrl++)">A+</button>
+  <span class="sep"></span>
+  <button id="btn-find" title="ページ内検索 (Ctrl+F)">検索</button>
+  <button id="btn-print" title="印刷 (Ctrl+P)">印刷</button>
+  <button id="btn-pdf" title="PDF に書き出し">PDF</button>
+  <span class="sep"></span>
+  <div class="dropdown">
+    <button id="btn-more" title="その他">⋯</button>
+    <ul id="more-menu" class="menu" hidden>
+      <li><button data-action="copy-html">HTML をコピー</button></li>
+      <li><button data-action="open-folder">ファイルの場所を開く</button></li>
+      <li class="divider"></li>
+      <li><button data-action="register">.md の既定アプリに登録</button></li>
+      <li><button data-action="unregister">既定アプリ登録を解除</button></li>
+      <li class="divider"></li>
+      <li><button data-action="about">バージョン情報</button></li>
+    </ul>
+  </div>
+  <span id="file-label" class="file-label" title=""></span>
+</header>
+
+<div id="find-bar" hidden>
+  <input id="find-input" type="search" placeholder="ページ内を検索…" autocomplete="off">
+  <span id="find-count"></span>
+  <button id="find-prev" title="前へ (Shift+Enter)">↑</button>
+  <button id="find-next" title="次へ (Enter)">↓</button>
+  <button id="find-close" title="閉じる (Esc)">×</button>
+</div>
+
+<div id="layout">
+  <nav id="toc" aria-label="目次"></nav>
+  <main id="content" tabindex="0">
+    <article id="doc" class="markdown-body">
+      <div class="empty-state">
+        <h1>MD Viewer</h1>
+        <p>Markdown ファイルをここにドラッグ&amp;ドロップ、<br>または「開く」ボタン (Ctrl+O) で選択してください。</p>
+        <p class="hint">.md ファイルを右クリック → 「プログラムから開く」で MdViewer.exe を選ぶと、<br>ダブルクリックで開けるようになります。</p>
+      </div>
+    </article>
+  </main>
+</div>
+
+<div id="drop-overlay" hidden>ここにドロップして開く</div>
+<div id="toast" hidden></div>
+
+<script src="vendor/markdown-it.min.js"></script>
+<script src="vendor/markdown-it-task-lists.min.js"></script>
+<script src="vendor/markdown-it-footnote.min.js"></script>
+<script src="vendor/highlight.min.js"></script>
+<script src="vendor/purify.min.js"></script>
+<script src="vendor/mermaid.min.js"></script>
+<script src="render.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,58 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>MdViewer</AssemblyName>
+    <RootNamespace>MdViewer</RootNamespace>
+    <ApplicationIcon>icon.ico</ApplicationIcon>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <ApplicationUseCompatibleTextRendering>false</ApplicationUseCompatibleTextRendering>
+    <ApplicationVisualStyles>true</ApplicationVisualStyles>
+
+    <!-- Linux / macOS 上でも net8.0-windows を restore / build できるようにする (CI 以外での検証用) -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+
+    <Version>0.1.0</Version>
+    <Product>MD Viewer</Product>
+    <Company>Yorozu Solutions</Company>
+    <Description>Markdown を読みやすく表示する Windows スタンドアロンビューア</Description>
+    <Copyright>Copyright (c) 2026 Yorozu Solutions</Copyright>
+    <NeutralLanguage>ja-JP</NeutralLanguage>
+    <SatelliteResourceLanguages>en;ja</SatelliteResourceLanguages>
+
+    <!-- publish 時の既定 (dotnet publish -c Release で単一 exe) -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>embedded</DebugType>
+    <PublishTrimmed>false</PublishTrimmed>
+    <PublishReadyToRun>false</PublishReadyToRun>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2792.45" />
+  </ItemGroup>
+
+  <!-- Assets (HTML/JS/CSS/vendor) は exe に埋め込み、初回起動時に %LOCALAPPDATA% へ展開する -->
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\**\*" LogicalName="Assets/%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <!-- NuGet パッケージ同梱の XML ドキュメントを publish 出力から除く (exe 単体にする) -->
+  <Target Name="RemoveXmlDocsAfterPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <_MdViewerXmlDocs Include="$(PublishDir)*.xml" />
+    </ItemGroup>
+    <Delete Files="@(_MdViewerXmlDocs)" />
+  </Target>
+
+</Project>

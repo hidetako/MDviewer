@@ -1,0 +1,5 @@
+# .NET build output
+MdViewer/bin/
+MdViewer/obj/
+publish/
+*.user
