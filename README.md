@@ -11,6 +11,12 @@ Web アプリではなく、各 PC に `MdViewer.exe` を 1 つ置くだけで�
 | 技術 | .NET 8 WinForms + WebView2 / markdown-it + highlight.js + mermaid + DOMPurify |
 | ライセンス | [MIT](LICENSE) — © [Yorozu Solutions](https://www.yorozusolutions.com/)。同梱ライブラリのライセンスは `MdViewer/Assets/vendor/LICENSE.*` |
 
+## スクリーンショット
+
+| ライトテーマ + 目次 | ダークテーマ (コード / mermaid 図) | ページ内検索 |
+|---|---|---|
+| ![ライト](docs/images/preview-1-light.png) | ![ダーク](docs/images/preview-2-dark.png) | ![検索](docs/images/preview-3-search.png) |
+
 ---
 
 ## 使い方

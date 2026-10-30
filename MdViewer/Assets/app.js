@@ -206,13 +206,13 @@
 
   function updateTocCurrent() {
     if (!state.toc.length) return;
-    var content = $("#content");
-    var top = content.scrollTop + 20;
+    // offsetTop は body 基準 (ツールバー分ずれる) なので、#content 上端からの相対位置で判定する
+    var contentTop = $("#content").getBoundingClientRect().top;
     var currentId = state.toc[0].id;
     for (var i = 0; i < state.toc.length; i++) {
       var el = document.getElementById(state.toc[i].id);
       if (!el) continue;
-      if (el.offsetTop <= top) currentId = state.toc[i].id;
+      if (el.getBoundingClientRect().top - contentTop <= 24) currentId = state.toc[i].id;
       else break;
     }
     var links = document.querySelectorAll("#toc a");

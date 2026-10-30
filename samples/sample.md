@@ -56,7 +56,7 @@ group by org_id;
 ```
 
 ```powershell
-dotnet publish tools/md-viewer/MdViewer/MdViewer.csproj -c Release -o publish
+dotnet publish MdViewer/MdViewer.csproj -c Release -o publish
 ```
 
 ## 5. mermaid 図
