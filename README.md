@@ -9,7 +9,7 @@ Web アプリではなく、各 PC に `MdViewer.exe` を 1 つ置くだけで�
 | 前提 | Microsoft Edge WebView2 ランタイム (Win10/11 には通常プリインストール済。無い場合は起動時に案内) |
 | 配布形態 | 単一 exe (約 70 MB、.NET ランタイム同梱) |
 | 技術 | .NET 8 WinForms + WebView2 / markdown-it + highlight.js + mermaid + DOMPurify |
-| ライセンス | 同梱ライブラリのライセンスは `MdViewer/Assets/vendor/LICENSE.*` |
+| ライセンス | [MIT](LICENSE) — © [Yorozu Solutions](https://www.yorozusolutions.com/)。同梱ライブラリのライセンスは `MdViewer/Assets/vendor/LICENSE.*` |
 
 ---
 
@@ -147,3 +147,13 @@ node --test tests/render.test.mjs
 - 複数ファイルのタブ表示は無し (ファイルごとに別ウィンドウで起動)
 - exe は未署名のため、初回のみ SmartScreen 警告が出ることがあります
 - WebView2 ランタイムが無い環境 (Windows Server のクリーン環境等) では Microsoft の配布ページからの導入が必要
+
+---
+
+## ライセンス
+
+[MIT License](LICENSE) — Copyright (c) 2026 [Yorozu Solutions](https://www.yorozusolutions.com/)
+
+同梱しているサードパーティライブラリ (markdown-it, highlight.js, mermaid, DOMPurify, github-markdown-css,
+markdown-it-task-lists, markdown-it-footnote) はそれぞれのライセンス (MIT / Apache-2.0) に従います。
+各ライセンス文は `MdViewer/Assets/vendor/LICENSE.*` を参照してください。
