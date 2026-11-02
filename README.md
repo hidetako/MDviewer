@@ -15,7 +15,7 @@ Web アプリではなく、各 PC に `MdViewer.exe` を 1 つ置くだけで�
 
 | ライトテーマ + 目次 | ダークテーマ (コード / mermaid 図) | ページ内検索 |
 |---|---|---|
-| ![ライト](docs/images/preview-1-light.png) | ![ダーク](docs/images/preview-2-dark.png) | ![検索](docs/images/preview-3-search.png) |
+| ![ライト](https://raw.githubusercontent.com/hidetako/MDviewer/main/docs/images/preview-1-light.png) | ![ダーク](https://raw.githubusercontent.com/hidetako/MDviewer/main/docs/images/preview-2-dark.png) | ![検索](https://raw.githubusercontent.com/hidetako/MDviewer/main/docs/images/preview-3-search.png) |
 
 ---
 

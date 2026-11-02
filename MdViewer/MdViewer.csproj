@@ -17,7 +17,7 @@
     <!-- Linux / macOS 上でも net8.0-windows を restore / build できるようにする (CI 以外での検証用) -->
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
 
-    <Version>0.2.0</Version>
+    <Version>0.2.1</Version>
     <Product>MD Viewer</Product>
     <Company>Yorozu Solutions</Company>
     <Description>Markdown を読みやすく表示する Windows スタンドアロンビューア</Description>
