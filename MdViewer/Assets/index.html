@@ -39,11 +39,25 @@
       <li><button data-action="register">.md の既定アプリに登録</button></li>
       <li><button data-action="unregister">既定アプリ登録を解除</button></li>
       <li class="divider"></li>
+      <li><button data-action="check-update">更新を確認</button></li>
+      <li><button data-action="toggle-update-check" id="menu-update-check">起動時に更新を確認する: オン</button></li>
+      <li class="divider"></li>
       <li><button data-action="about">バージョン情報</button></li>
     </ul>
   </div>
   <span id="file-label" class="file-label" title=""></span>
 </header>
+
+<div id="update-banner" hidden>
+  <span id="update-text"></span>
+  <span id="update-actions">
+    <button id="update-apply">今すぐ更新</button>
+    <button id="update-skip">この版をスキップ</button>
+    <button id="update-later">後で</button>
+    <button id="update-notes" title="リリースノートをブラウザで開く">詳細</button>
+  </span>
+  <span id="update-progress" hidden><progress id="update-bar" max="100" value="0"></progress><span id="update-percent"></span></span>
+</div>
 
 <div id="find-bar" hidden>
   <input id="find-input" type="search" placeholder="ページ内を検索…" autocomplete="off">

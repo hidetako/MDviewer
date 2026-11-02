@@ -141,6 +141,19 @@ jobs:
         shell: pwsh
         run: Compress-Archive -Path publish/MdViewer.exe, README.md -DestinationPath MdViewer-win-x64.zip
 
+      - name: Write SHA256SUMS.txt (アプリ内自動更新の検証用)
+        if: steps.rel.outputs.tag != ''
+        shell: pwsh
+        run: |
+          $files = @("publish/MdViewer.exe", "MdViewer-win-x64.zip") + (Get-ChildItem installer-out/MdViewer-Setup-*.exe | ForEach-Object { $_.FullName })
+          $lines = foreach ($f in $files) {
+            $h = (Get-FileHash -Algorithm SHA256 $f).Hash.ToLower()
+            "$h  $(Split-Path $f -Leaf)"
+          }
+          # sha256sum 互換 (LF 区切り)
+          [IO.File]::WriteAllText("SHA256SUMS.txt", ($lines -join "`n") + "`n")
+          Get-Content SHA256SUMS.txt
+
       - name: Create GitHub Release
         if: steps.rel.outputs.tag != ''
         uses: softprops/action-gh-release@v2
@@ -155,8 +168,10 @@ jobs:
             - **インストーラ版**: `MdViewer-Setup-x.y.z.exe` — スタートメニュー登録・.md 関連付け・アンインストール対応。管理者権限不要 (全ユーザ向けも選択可)。
             - **ポータブル版**: `MdViewer.exe` をダウンロードして任意のフォルダに置くだけで動作します (インストール不要)。
             - 必要条件: Windows 10/11 (x64)。Microsoft Edge WebView2 ランタイムが無い PC ではインストーラが自動導入します。
+            - 起動時に新しいバージョンを自動確認し、バナーから更新できます (`SHA256SUMS.txt` で検証)。
             - 使い方は同梱の README.md を参照。
           files: |
             installer-out/MdViewer-Setup-*.exe
             MdViewer-win-x64.zip
             publish/MdViewer.exe
+            SHA256SUMS.txt

@@ -21,6 +21,7 @@
     theme: "light",
     zoom: 1,
     tocVisible: true,
+    updateCheck: true,
     recent: [],
     version: "",
     toc: [],
@@ -50,7 +51,7 @@
   function saveSettings() {
     send({
       type: "settings",
-      settings: { theme: state.theme, zoom: state.zoom, tocVisible: state.tocVisible },
+      settings: { theme: state.theme, zoom: state.zoom, tocVisible: state.tocVisible, updateCheck: state.updateCheck },
     });
   }
 
@@ -75,6 +76,16 @@
         case "toast":
           toast(msg.message || "");
           break;
+        case "update":
+          showUpdateBanner(msg);
+          break;
+        case "updateProgress":
+          setUpdateProgress(msg.percent || 0);
+          break;
+        case "updateFailed":
+          resetUpdateBanner();
+          toast("更新に失敗しました: " + (msg.message || ""));
+          break;
       }
     });
   }
@@ -88,6 +99,7 @@
     if (s.theme === "dark" || s.theme === "light") setTheme(s.theme, true);
     if (typeof s.zoom === "number" && s.zoom >= ZOOM_MIN && s.zoom <= ZOOM_MAX) setZoom(s.zoom, true);
     if (typeof s.tocVisible === "boolean") setTocVisible(s.tocVisible, true);
+    if (typeof s.updateCheck === "boolean") { state.updateCheck = s.updateCheck; renderUpdateCheckMenu(); }
     if (Array.isArray(s.recent)) state.recent = s.recent;
   }
 
@@ -313,6 +325,16 @@
       case "open-folder": send({ type: "openFolder" }); break;
       case "register": send({ type: "register" }); break;
       case "unregister": send({ type: "unregister" }); break;
+      case "check-update":
+        send({ type: "checkUpdate" });
+        toast("更新を確認しています…");
+        break;
+      case "toggle-update-check":
+        state.updateCheck = !state.updateCheck;
+        renderUpdateCheckMenu();
+        saveSettings();
+        toast(state.updateCheck ? "起動時に更新を確認します" : "起動時の更新確認をオフにしました");
+        break;
       case "about":
         toast("MD Viewer " + (state.version || "") + " — Markdown を読みやすく表示するスタンドアロンビューア");
         break;
@@ -334,6 +356,43 @@
       send({ type: "clipboard", text: text });
     }
   }
+
+  // ---------------------------------------------------------------- update banner
+  function renderUpdateCheckMenu() {
+    var b = $("#menu-update-check");
+    if (b) b.textContent = "起動時に更新を確認する: " + (state.updateCheck ? "オン" : "オフ");
+  }
+
+  function showUpdateBanner(info) {
+    var mb = info.size ? " (" + Math.round(info.size / 1048576) + " MB)" : "";
+    $("#update-text").textContent =
+      "新しいバージョン " + (info.tag || "v" + info.version) + " があります (現在 v" + (info.current || state.version) + ")" + mb;
+    $("#update-actions").hidden = false;
+    $("#update-progress").hidden = true;
+    $("#update-banner").hidden = false;
+    $("#update-notes").onclick = function () { send({ type: "openExternal", url: info.url }); };
+  }
+
+  function setUpdateProgress(percent) {
+    $("#update-actions").hidden = true;
+    $("#update-progress").hidden = false;
+    $("#update-bar").value = percent;
+    $("#update-percent").textContent = percent + "%";
+    $("#update-text").textContent = percent >= 100 ? "更新を適用しています… アプリは自動的に再起動します" : "ダウンロード中…";
+  }
+
+  function resetUpdateBanner() {
+    $("#update-banner").hidden = true;
+    $("#update-actions").hidden = false;
+    $("#update-progress").hidden = true;
+  }
+
+  $("#update-apply").addEventListener("click", function () {
+    setUpdateProgress(0);
+    send({ type: "applyUpdate" });
+  });
+  $("#update-skip").addEventListener("click", function () { resetUpdateBanner(); send({ type: "skipUpdate" }); });
+  $("#update-later").addEventListener("click", function () { resetUpdateBanner(); send({ type: "dismissUpdate" }); });
 
   // ---------------------------------------------------------------- find
   var findState = { open: false, hits: [], index: -1 };

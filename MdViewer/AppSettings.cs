@@ -13,6 +13,10 @@ public sealed class AppSettings
     public string Theme { get; set; } = "light";
     public double Zoom { get; set; } = 1.0;
     public bool TocVisible { get; set; } = true;
+    /// <summary>起動時に GitHub Releases の新版を確認する</summary>
+    public bool UpdateCheck { get; set; } = true;
+    /// <summary>「この版をスキップ」したタグ名 (例: v0.3.0)</summary>
+    public string SkippedVersion { get; set; } = "";
     public List<string> Recent { get; set; } = new();
     public WindowState Window { get; set; } = new();
 

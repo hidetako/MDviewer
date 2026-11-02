@@ -30,9 +30,12 @@ internal static class Program
         }
 
         var initialPath = args.FirstOrDefault(a => !a.StartsWith("--", StringComparison.Ordinal));
+        var noUpdateCheck = args.Contains("--no-update-check");
+
+        UpdateService.CleanupAfterUpdate();
 
         ApplicationConfiguration.Initialize();
-        Application.Run(new MainForm(initialPath));
+        Application.Run(new MainForm(initialPath, noUpdateCheck));
         return 0;
     }
 }

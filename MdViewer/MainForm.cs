@@ -21,15 +21,21 @@ public sealed class MainForm : Form
     private readonly AppSettings _settings = AppSettings.Load();
     private readonly System.Windows.Forms.Timer _reloadTimer = new() { Interval = 400 };
 
+    private readonly bool _noUpdateCheck;
+    private UpdateService.UpdateInfo? _pendingUpdate;
+    private CancellationTokenSource? _updateCts;
+    private bool _updateInProgress;
+
     private string? _pendingPath;
     private string? _pendingAnchor;
     private string? _currentPath;
     private FileSystemWatcher? _watcher;
     private bool _webReady;
 
-    public MainForm(string? initialPath)
+    public MainForm(string? initialPath, bool noUpdateCheck = false)
     {
         _pendingPath = initialPath;
+        _noUpdateCheck = noUpdateCheck;
 
         Text = "MD Viewer";
         MinimumSize = new Size(480, 320);
@@ -165,6 +171,27 @@ public sealed class MainForm : Form
                         _pendingPath = null; _pendingAnchor = null;
                         OpenFile(p, anchor: a);
                     }
+                    if (_settings.UpdateCheck && !_noUpdateCheck) _ = CheckForUpdateAsync(manual: false);
+                    break;
+                case "checkUpdate":
+                    _ = CheckForUpdateAsync(manual: true);
+                    break;
+                case "applyUpdate":
+                    _ = ApplyUpdateAsync();
+                    break;
+                case "skipUpdate":
+                    if (_pendingUpdate != null)
+                    {
+                        _settings.SkippedVersion = _pendingUpdate.TagName;
+                        _settings.Save();
+                        _pendingUpdate = null;
+                    }
+                    break;
+                case "dismissUpdate":
+                    _pendingUpdate = null;
+                    break;
+                case "openReleases":
+                    OpenExternal($"https://github.com/{UpdateService.Owner}/{UpdateService.Repo}/releases");
                     break;
                 case "open":
                     ShowOpenDialog();
@@ -229,6 +256,7 @@ public sealed class MainForm : Form
                 theme = _settings.Theme,
                 zoom = _settings.Zoom,
                 tocVisible = _settings.TocVisible,
+                updateCheck = _settings.UpdateCheck,
                 recent = _settings.Recent,
             },
         });
@@ -239,6 +267,7 @@ public sealed class MainForm : Form
         if (st.TryGetProperty("theme", out var th) && th.GetString() is "light" or "dark") _settings.Theme = th.GetString()!;
         if (st.TryGetProperty("zoom", out var z) && z.TryGetDouble(out var zoom) && zoom is >= 0.5 and <= 3) _settings.Zoom = zoom;
         if (st.TryGetProperty("tocVisible", out var tv) && (tv.ValueKind == JsonValueKind.True || tv.ValueKind == JsonValueKind.False)) _settings.TocVisible = tv.GetBoolean();
+        if (st.TryGetProperty("updateCheck", out var uc) && (uc.ValueKind == JsonValueKind.True || uc.ValueKind == JsonValueKind.False)) _settings.UpdateCheck = uc.GetBoolean();
         _settings.Save();
     }
 
@@ -250,6 +279,73 @@ public sealed class MainForm : Form
     }
 
     private void Toast(string message) => Post(new { type = "toast", message });
+
+    // ------------------------------------------------------------------ auto update
+
+    private async Task CheckForUpdateAsync(bool manual)
+    {
+        if (_updateInProgress) return;
+        if (!manual) await Task.Delay(3000); // 起動直後の描画を優先
+        try
+        {
+            var info = await UpdateService.CheckAsync(CancellationToken.None);
+            if (info == null)
+            {
+                if (manual) Toast($"最新版です (v{Program.Version})");
+                return;
+            }
+            if (!manual && string.Equals(_settings.SkippedVersion, info.TagName, StringComparison.OrdinalIgnoreCase))
+                return; // ユーザがスキップした版
+            _pendingUpdate = info;
+            Post(new
+            {
+                type = "update",
+                current = Program.Version,
+                version = info.Version.ToString(),
+                tag = info.TagName,
+                url = info.ReleaseUrl,
+                size = info.AssetSize,
+                kind = info.Kind.ToString(),
+                manual,
+            });
+        }
+        catch (Exception ex)
+        {
+            if (manual) Toast("更新の確認に失敗しました: " + ex.Message);
+            // 自動チェックの失敗は黙って無視 (オフライン等)
+        }
+    }
+
+    private async Task ApplyUpdateAsync()
+    {
+        var info = _pendingUpdate;
+        if (info == null || _updateInProgress) return;
+        _updateInProgress = true;
+        _updateCts = new CancellationTokenSource();
+        var progress = new Progress<double>(p => Post(new { type = "updateProgress", percent = (int)Math.Round(p * 100) }));
+        try
+        {
+            var restart = await UpdateService.DownloadAndApplyAsync(info, _currentPath, progress, _updateCts.Token);
+            if (restart)
+            {
+                _settings.Save();
+                Close(); // インストーラ / 新 exe が再起動する
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            Post(new { type = "updateFailed", message = "更新を中止しました" });
+        }
+        catch (Exception ex)
+        {
+            Post(new { type = "updateFailed", message = ex.Message });
+        }
+        finally
+        {
+            _updateInProgress = false;
+            _updateCts = null;
+        }
+    }
 
     // ------------------------------------------------------------------ file open
 

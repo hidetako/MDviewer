@@ -98,6 +98,8 @@ Root: HKA; Subkey: "Software\Classes\.markdown\OpenWithProgids"; ValueType: stri
 Filename: "{tmp}\MicrosoftEdgeWebView2Setup.exe"; Parameters: "/silent /install"; StatusMsg: "{cm:InstallingWebView2}"; Check: not WebView2Installed; Flags: waituntilterminated
 #endif
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+; アプリ内の自動更新 (/VERYSILENT /RELAUNCH=1 [/RELAUNCHFILE=<path>]) から呼ばれた場合は、更新後にアプリを再起動する
+Filename: "{app}\{#MyAppExeName}"; Parameters: "{code:RelaunchParams}"; Flags: nowait skipifdoesntexist; Check: ShouldRelaunch
 
 [UninstallDelete]
 ; 展開済み Assets / WebView2 キャッシュ (設定 %APPDATA%\MdViewer\settings.json は残す)
@@ -122,6 +124,20 @@ begin
     Result := True
   else if RegQueryStringValue(HKCU, 'Software\' + ClientKey, 'pv', Ver) and (Ver <> '') and (Ver <> '0.0.0.0') then
     Result := True;
+end;
+
+// /RELAUNCH=1 が指定されていれば更新後にアプリを再起動 (自動更新用)
+function ShouldRelaunch: Boolean;
+begin
+  Result := ExpandConstant('{param:RELAUNCH|0}') = '1';
+end;
+
+function RelaunchParams(Param: String): String;
+var
+  F: String;
+begin
+  F := ExpandConstant('{param:RELAUNCHFILE|}');
+  if F <> '' then Result := '"' + F + '"' else Result := '';
 end;
 
 // 拡張子の既定値が自分の ProgId のときだけ消す (他アプリの関連付けは壊さない)

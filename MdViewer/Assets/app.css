@@ -94,6 +94,28 @@ body {
 .menu button { display: block; width: 100%; text-align: left; overflow: hidden; text-overflow: ellipsis; }
 .menu .empty { padding: 6px 9px; color: var(--muted); }
 
+/* ---- update banner ---- */
+#update-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--accent-bg);
+  color: var(--fg);
+}
+#update-banner[hidden] { display: none; }
+#update-banner button {
+  font: inherit; color: var(--fg); background: var(--bg);
+  border: 1px solid var(--border); border-radius: 6px; padding: 3px 10px; cursor: pointer;
+}
+#update-banner button:hover { border-color: var(--accent); }
+#update-apply { background: var(--accent) !important; color: #fff !important; border-color: var(--accent) !important; }
+#update-progress { display: flex; align-items: center; gap: 8px; }
+#update-progress[hidden] { display: none; }
+#update-bar { width: 220px; height: 10px; }
+#update-percent { min-width: 3em; color: var(--muted); }
+
 /* ---- find bar ---- */
 #find-bar {
   display: flex;
