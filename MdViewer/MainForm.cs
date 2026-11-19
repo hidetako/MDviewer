@@ -29,6 +29,12 @@ public sealed class MainForm : Form
     private string? _pendingPath;
     private string? _pendingAnchor;
     private string? _currentPath;
+    private string _currentEncoding = "UTF-8";
+    private string _currentNewline = "\r\n";
+    private bool _dirty;
+    private bool _externalChangeNotified;
+    private DateTime _suppressWatchUntil = DateTime.MinValue;
+    private Action? _afterSave; // 「保存してから○○」の○○
     private FileSystemWatcher? _watcher;
     private bool _webReady;
 
@@ -58,11 +64,23 @@ public sealed class MainForm : Form
         _reloadTimer.Tick += (_, _) =>
         {
             _reloadTimer.Stop();
-            if (_currentPath != null && File.Exists(_currentPath)) OpenFile(_currentPath, keepScroll: true);
+            if (_currentPath == null || !File.Exists(_currentPath)) return;
+            if (DateTime.UtcNow < _suppressWatchUntil) return; // 自分の保存による変更通知
+            if (_dirty)
+            {
+                // 編集中の内容を外部変更で上書きしない
+                if (!_externalChangeNotified)
+                {
+                    _externalChangeNotified = true;
+                    Toast("ファイルが外部で変更されました。再読込 (F5) で読み直せます (編集中の内容は破棄されます)");
+                }
+                return;
+            }
+            OpenFile(_currentPath, keepScroll: true);
         };
 
         Load += async (_, _) => await InitializeWebViewAsync();
-        FormClosing += (_, _) => SaveWindowBounds();
+        FormClosing += OnFormClosing;
     }
 
     // ------------------------------------------------------------------ WebView2 init
@@ -194,13 +212,29 @@ public sealed class MainForm : Form
                     OpenExternal($"https://github.com/{UpdateService.Owner}/{UpdateService.Repo}/releases");
                     break;
                 case "open":
-                    ShowOpenDialog();
+                    ConfirmDiscardThen(ShowOpenDialog);
                     break;
                 case "openPath":
-                    if (root.TryGetProperty("path", out var pp) && pp.GetString() is { } path) OpenFile(path);
+                    if (root.TryGetProperty("path", out var pp) && pp.GetString() is { } path)
+                        ConfirmDiscardThen(() => OpenFile(path));
                     break;
                 case "reload":
-                    if (_currentPath != null) OpenFile(_currentPath, keepScroll: true);
+                    if (_currentPath != null)
+                        ConfirmDiscardThen(() => OpenFile(_currentPath!, keepScroll: true), discardPrompt: true);
+                    break;
+                case "new":
+                    ConfirmDiscardThen(NewDocument);
+                    break;
+                case "save":
+                    if (root.TryGetProperty("text", out var st1) && st1.GetString() is { } text1) SaveDocument(text1, saveAs: false);
+                    break;
+                case "saveAs":
+                    if (root.TryGetProperty("text", out var st2) && st2.GetString() is { } text2) SaveDocument(text2, saveAs: true);
+                    break;
+                case "dirty":
+                    _dirty = root.TryGetProperty("dirty", out var d) && d.ValueKind == JsonValueKind.True;
+                    if (!_dirty) _externalChangeNotified = false;
+                    UpdateTitle();
                     break;
                 case "openExternal":
                     if (root.TryGetProperty("url", out var u) && u.GetString() is { } url) OpenExternal(url);
@@ -404,7 +438,11 @@ public sealed class MainForm : Form
         core.SetVirtualHostNameToFolderMapping(DocHost, dir, CoreWebView2HostResourceAccessKind.DenyCors);
 
         _currentPath = full;
-        Text = Path.GetFileName(full) + " — MD Viewer";
+        _currentEncoding = encodingName.StartsWith("UTF-8 (", StringComparison.Ordinal) ? "UTF-8" : encodingName;
+        _currentNewline = TextFile.DetectNewline(text);
+        _dirty = false;
+        _externalChangeNotified = false;
+        UpdateTitle();
         _settings.TouchRecent(full);
         _settings.Save();
 
@@ -469,6 +507,136 @@ public sealed class MainForm : Form
         if (uri.Scheme is not ("http" or "https" or "mailto")) return;
         try { Process.Start(new ProcessStartInfo(uri.ToString()) { UseShellExecute = true }); }
         catch (Exception ex) { Toast("ブラウザを開けませんでした: " + ex.Message); }
+    }
+
+    // ------------------------------------------------------------------ new / save
+
+    private void NewDocument()
+    {
+        _watcher?.Dispose();
+        _watcher = null;
+        _currentPath = null;
+        _currentEncoding = "UTF-8";
+        _currentNewline = "\r\n";
+        _dirty = false;
+        _externalChangeNotified = false;
+        UpdateTitle();
+        Post(new { type = "load", path = (string?)null, name = "無題.md", dir = (string?)null, text = "", encoding = "UTF-8", isNew = true, edit = true });
+    }
+
+    /// <summary>Web から受け取った本文を保存する。パス未定 (新規) または saveAs ならダイアログ。</summary>
+    private void SaveDocument(string text, bool saveAs)
+    {
+        var target = _currentPath;
+        if (saveAs || target == null)
+        {
+            using var dlg = new SaveFileDialog
+            {
+                Title = saveAs ? "名前を付けて保存" : "保存",
+                Filter = "Markdown (*.md)|*.md|Markdown (*.markdown)|*.markdown|テキスト (*.txt)|*.txt|すべてのファイル (*.*)|*.*",
+                DefaultExt = "md",
+                AddExtension = true,
+                OverwritePrompt = true,
+                FileName = target != null ? Path.GetFileName(target) : "無題.md",
+                InitialDirectory = target != null
+                    ? Path.GetDirectoryName(target)
+                    : (_settings.Recent.FirstOrDefault() is { } r && Directory.Exists(Path.GetDirectoryName(r)) ? Path.GetDirectoryName(r) : Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)),
+            };
+            if (dlg.ShowDialog(this) != DialogResult.OK) { _afterSave = null; return; }
+            target = dlg.FileName;
+        }
+
+        // 改行コードを元ファイルに合わせる (textarea は常に \n)
+        var normalized = text.Replace("\r\n", "\n");
+        if (_currentNewline == "\r\n") normalized = normalized.Replace("\n", "\r\n");
+
+        try
+        {
+            _suppressWatchUntil = DateTime.UtcNow.AddSeconds(2);
+            TextFile.Write(target, normalized, _currentEncoding);
+        }
+        catch (Exception ex)
+        {
+            _afterSave = null;
+            MessageBox.Show(this, "保存に失敗しました。\n\n" + target + "\n" + ex.Message, "MD Viewer", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            return;
+        }
+
+        var pathChanged = !string.Equals(target, _currentPath, StringComparison.OrdinalIgnoreCase);
+        _currentPath = target;
+        _dirty = false;
+        _externalChangeNotified = false;
+        UpdateTitle();
+        if (pathChanged)
+        {
+            var dir = Path.GetDirectoryName(target) ?? target;
+            var core = _web.CoreWebView2;
+            try { core.ClearVirtualHostNameToFolderMapping(DocHost); } catch { }
+            core.SetVirtualHostNameToFolderMapping(DocHost, dir, CoreWebView2HostResourceAccessKind.DenyCors);
+            WatchFile(target);
+        }
+        _settings.TouchRecent(target);
+        _settings.Save();
+        Post(new { type = "saved", path = target, name = Path.GetFileName(target), dir = Path.GetDirectoryName(target), encoding = _currentEncoding });
+        Post(new { type = "recent", recent = _settings.Recent });
+        Toast("保存しました: " + Path.GetFileName(target));
+
+        var next = _afterSave;
+        _afterSave = null;
+        next?.Invoke();
+    }
+
+    /// <summary>
+    /// 未保存の変更があれば「保存 / 破棄 / キャンセル」を確認してから next を実行する。
+    /// 保存を選んだ場合は Web に本文を要求し、保存完了後に next を実行する。
+    /// </summary>
+    private void ConfirmDiscardThen(Action next, bool discardPrompt = false)
+    {
+        if (!_dirty) { next(); return; }
+        if (discardPrompt)
+        {
+            var r0 = MessageBox.Show(this, "編集中の内容を破棄して読み直しますか？", "MD Viewer", MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
+            if (r0 == DialogResult.OK) { _dirty = false; next(); }
+            return;
+        }
+        var name = _currentPath != null ? Path.GetFileName(_currentPath) : "無題.md";
+        var r = MessageBox.Show(this, $"{name} への変更を保存しますか？", "MD Viewer", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+        switch (r)
+        {
+            case DialogResult.Yes:
+                _afterSave = next;
+                Post(new { type = "requestSave" });
+                break;
+            case DialogResult.No:
+                _dirty = false;
+                next();
+                break;
+        }
+    }
+
+    private void OnFormClosing(object? sender, FormClosingEventArgs e)
+    {
+        if (_dirty && e.CloseReason is CloseReason.UserClosing or CloseReason.None)
+        {
+            var name = _currentPath != null ? Path.GetFileName(_currentPath) : "無題.md";
+            var r = MessageBox.Show(this, $"{name} への変更を保存しますか？", "MD Viewer", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+            if (r == DialogResult.Cancel) { e.Cancel = true; return; }
+            if (r == DialogResult.Yes)
+            {
+                e.Cancel = true;
+                _afterSave = () => { _dirty = false; Close(); };
+                Post(new { type = "requestSave" });
+                return;
+            }
+            _dirty = false;
+        }
+        SaveWindowBounds();
+    }
+
+    private void UpdateTitle()
+    {
+        var name = _currentPath != null ? Path.GetFileName(_currentPath) : "無題.md";
+        Text = (_dirty ? "*" : "") + name + " — MD Viewer";
     }
 
     // ------------------------------------------------------------------ file watcher

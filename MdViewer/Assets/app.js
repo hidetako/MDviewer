@@ -25,6 +25,10 @@
     recent: [],
     version: "",
     toc: [],
+    editing: false,
+    dirty: false,
+    savedText: "",
+    name: "",
   };
 
   var ZOOM_MIN = 0.6, ZOOM_MAX = 2.2, ZOOM_STEP = 0.1;
@@ -66,6 +70,12 @@
           break;
         case "load":
           loadDocument(msg);
+          break;
+        case "saved":
+          onSaved(msg);
+          break;
+        case "requestSave":
+          send({ type: "save", text: currentText() });
           break;
         case "recent":
           state.recent = msg.recent || [];
@@ -137,15 +147,91 @@
   function loadDocument(msg) {
     state.path = msg.path || null;
     state.dir = msg.dir || null;
+    state.name = msg.name || "";
     state.text = msg.text || "";
-    var label = $("#file-label");
-    label.textContent = msg.path || msg.name || "";
-    label.title = (msg.path || "") + (msg.encoding ? "  [" + msg.encoding + "]" : "");
-    document.title = (msg.name || "MD Viewer") + " — MD Viewer";
+    state.savedText = state.text;
+    state.encoding = msg.encoding || "";
+    setDirty(false);
+    updateFileLabel();
+    if (msg.edit) setEditing(true);
+    if (state.editing) $("#editor-text").value = state.text;
     renderCurrent(!!msg.keepScroll);
     if (msg.keepScroll) toast("再読み込みしました");
     else if (msg.anchor) scrollToId(msg.anchor);
+    else if (state.editing) $("#editor-text").focus();
     else $("#content").focus();
+  }
+
+  function updateFileLabel() {
+    var label = $("#file-label");
+    label.textContent = (state.dirty ? "* " : "") + (state.path || state.name || "");
+    label.title = (state.path || state.name || "") + (state.encoding ? "  [" + state.encoding + "]" : "") + (state.dirty ? "  (未保存)" : "");
+    label.classList.toggle("dirty", state.dirty);
+    document.title = (state.dirty ? "*" : "") + (state.name || "MD Viewer") + " — MD Viewer";
+  }
+
+  // ---------------------------------------------------------------- editor
+  function currentText() {
+    return state.editing ? $("#editor-text").value : state.text;
+  }
+
+  function setDirty(v) {
+    if (state.dirty === v) { return; }
+    state.dirty = v;
+    send({ type: "dirty", dirty: v });
+  }
+
+  function setEditing(v) {
+    state.editing = v;
+    document.body.classList.toggle("editing", v);
+    $("#editor").hidden = !v;
+    $("#btn-edit").classList.toggle("active", v);
+    if (v) {
+      var ta = $("#editor-text");
+      if (ta.value !== state.text) ta.value = state.text;
+      ta.focus();
+    }
+  }
+
+  var editTimer = null;
+  $("#editor-text").addEventListener("input", function () {
+    clearTimeout(editTimer);
+    editTimer = setTimeout(function () {
+      state.text = $("#editor-text").value;
+      setDirty(state.text !== state.savedText);
+      updateFileLabel();
+      renderCurrent(true);
+    }, 150);
+  });
+
+  // Tab でスペース 2 つ (フォーカス移動しない)
+  $("#editor-text").addEventListener("keydown", function (ev) {
+    if (ev.key !== "Tab" || ev.ctrlKey || ev.altKey) return;
+    ev.preventDefault();
+    var ta = ev.target, s = ta.selectionStart, e = ta.selectionEnd;
+    ta.setRangeText("  ", s, e, "end");
+    ta.dispatchEvent(new Event("input"));
+  });
+
+  function saveDocument(saveAs) {
+    if (!host) { toast("保存はアプリ内でのみ使えます"); return; }
+    clearTimeout(editTimer);
+    if (state.editing) state.text = $("#editor-text").value;
+    send({ type: saveAs ? "saveAs" : "save", text: state.text });
+  }
+
+  function onSaved(msg) {
+    state.path = msg.path || state.path;
+    state.dir = msg.dir || state.dir;
+    state.name = msg.name || state.name;
+    state.encoding = msg.encoding || state.encoding;
+    state.savedText = state.text;
+    setDirty(false);
+    updateFileLabel();
+  }
+
+  function newDocument() {
+    send({ type: "new" });
   }
 
   function renderCurrent(keepScroll) {
@@ -260,7 +346,10 @@
   });
 
   // ---------------------------------------------------------------- toolbar
+  $("#btn-new").addEventListener("click", newDocument);
   $("#btn-open").addEventListener("click", function () { send({ type: "open" }); });
+  $("#btn-save").addEventListener("click", function () { saveDocument(false); });
+  $("#btn-edit").addEventListener("click", function () { setEditing(!state.editing); });
   $("#btn-reload").addEventListener("click", function () { send({ type: "reload" }); });
   $("#btn-toc").addEventListener("click", function () { setTocVisible(!state.tocVisible); });
   $("#btn-theme").addEventListener("click", function () { setTheme(state.theme === "dark" ? "light" : "dark"); });
@@ -319,6 +408,9 @@
     moreMenu.hidden = true;
     var action = b.getAttribute("data-action");
     switch (action) {
+      case "save-as":
+        saveDocument(true);
+        break;
       case "copy-html":
         copyText($("#doc").innerHTML, "HTML をコピーしました");
         break;
@@ -492,6 +584,9 @@
     if (ev.key === "Escape") { closeMenus(null); if (findState.open) closeFind(); return; }
     if (!ctrl) return;
     switch (ev.key) {
+      case "n": case "N": ev.preventDefault(); newDocument(); break;
+      case "s": case "S": ev.preventDefault(); saveDocument(ev.shiftKey); break;
+      case "e": case "E": ev.preventDefault(); setEditing(!state.editing); break;
       case "o": case "O": ev.preventDefault(); send({ type: "open" }); break;
       case "r": case "R": ev.preventDefault(); send({ type: "reload" }); break;
       case "b": case "B": ev.preventDefault(); setTocVisible(!state.tocVisible); break;
@@ -530,7 +625,7 @@
     if (!f) return;
     var reader = new FileReader();
     reader.onload = function () {
-      loadDocument({ name: f.name, path: f.name, text: String(reader.result || "") });
+      loadDocument({ name: f.name, path: null, text: String(reader.result || "") });
     };
     reader.readAsText(f, "utf-8");
   });

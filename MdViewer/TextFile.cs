@@ -29,6 +29,31 @@ internal static class TextFile
         return Decode(bytes);
     }
 
+    /// <summary>
+    /// 読み込み時に判定した文字コード名で書き戻す (新規は UTF-8 / BOM 無し)。
+    /// 同じフォルダに一時ファイルを書いてから置き換える (書き込み途中の破損を避ける)。
+    /// </summary>
+    public static void Write(string path, string text, string encodingName)
+    {
+        var enc = EncodingFromName(encodingName);
+        var dir = Path.GetDirectoryName(path) ?? ".";
+        var tmp = Path.Combine(dir, "." + Path.GetFileName(path) + ".mdviewer-tmp");
+        File.WriteAllText(tmp, text, enc); // Encoding の preamble (BOM) もここで書かれる
+        File.Move(tmp, path, overwrite: true);
+    }
+
+    public static Encoding EncodingFromName(string name) => name switch
+    {
+        "UTF-8 BOM" => new UTF8Encoding(encoderShouldEmitUTF8Identifier: true),
+        "UTF-16 LE" => new UnicodeEncoding(bigEndian: false, byteOrderMark: true),
+        "UTF-16 BE" => new UnicodeEncoding(bigEndian: true, byteOrderMark: true),
+        "Shift_JIS" => Encoding.GetEncoding(932),
+        _ => new UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
+    };
+
+    /// <summary>テキストの改行コードを判定 ("\r\n" か "\n")。</summary>
+    public static string DetectNewline(string text) => text.Contains("\r\n") ? "\r\n" : "\n";
+
     public static (string Text, string EncodingName) Decode(byte[] bytes)
     {
         if (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)

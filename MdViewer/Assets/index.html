@@ -13,13 +13,16 @@
 <body data-theme="light">
 
 <header id="toolbar">
+  <button id="btn-new" title="新規作成 (Ctrl+N)">新規</button>
   <button id="btn-open" title="開く (Ctrl+O)">開く</button>
   <div class="dropdown">
     <button id="btn-recent" title="最近開いたファイル">最近 ▾</button>
     <ul id="recent-menu" class="menu" hidden></ul>
   </div>
+  <button id="btn-save" title="保存 (Ctrl+S)">保存</button>
   <button id="btn-reload" title="再読み込み (F5)">再読込</button>
   <span class="sep"></span>
+  <button id="btn-edit" title="編集モード切替 (Ctrl+E)">編集</button>
   <button id="btn-toc" title="目次の表示/非表示 (Ctrl+B)">目次</button>
   <button id="btn-theme" title="ライト/ダーク切替 (Ctrl+D)">テーマ</button>
   <button id="btn-zoom-out" title="文字を小さく (Ctrl+-)">A-</button>
@@ -33,6 +36,8 @@
   <div class="dropdown">
     <button id="btn-more" title="その他">⋯</button>
     <ul id="more-menu" class="menu" hidden>
+      <li><button data-action="save-as">名前を付けて保存… (Ctrl+Shift+S)</button></li>
+      <li class="divider"></li>
       <li><button data-action="copy-html">HTML をコピー</button></li>
       <li><button data-action="open-folder">ファイルの場所を開く</button></li>
       <li class="divider"></li>
@@ -69,11 +74,15 @@
 
 <div id="layout">
   <nav id="toc" aria-label="目次"></nav>
+  <section id="editor" hidden>
+    <textarea id="editor-text" spellcheck="false" wrap="soft" placeholder="# タイトル&#10;&#10;ここに Markdown を入力すると右側にプレビューが表示されます。&#10;Ctrl+S で保存、Ctrl+E でプレビューのみに戻ります。"></textarea>
+  </section>
   <main id="content" tabindex="0">
     <article id="doc" class="markdown-body">
       <div class="empty-state">
         <h1>MD Viewer</h1>
         <p>Markdown ファイルをここにドラッグ&amp;ドロップ、<br>または「開く」ボタン (Ctrl+O) で選択してください。</p>
+        <p>「新規」(Ctrl+N) で新しい Markdown を書き始めることもできます。</p>
         <p class="hint">.md ファイルを右クリック → 「プログラムから開く」で MdViewer.exe を選ぶと、<br>ダブルクリックで開けるようになります。</p>
       </div>
     </article>

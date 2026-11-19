@@ -170,7 +170,36 @@ body.toc-hidden #toc { display: none; }
 #toc .lv5, #toc .lv6 { padding-left: 54px; }
 #toc .toc-empty { color: var(--muted); padding: 6px 8px; }
 
-#content { flex: 1 1 auto; overflow: auto; outline: none; }
+#content { flex: 1 1 auto; overflow: auto; outline: none; min-width: 0; }
+
+/* ---- editor (split view) ---- */
+#editor {
+  flex: 0 0 46%;
+  min-width: 280px;
+  display: flex;
+  border-right: 1px solid var(--border);
+  background: var(--bg);
+}
+#editor[hidden] { display: none; }
+#editor-text {
+  flex: 1 1 auto;
+  width: 100%;
+  margin: 0;
+  padding: 16px 18px;
+  border: 0;
+  outline: none;
+  resize: none;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: ui-monospace, Consolas, "Cascadia Mono", "BIZ UDGothic", "MS Gothic", monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  tab-size: 2;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+#editor-text::placeholder { color: var(--muted); }
+body.editing #doc { max-width: none; padding: 24px 32px 80px; }
 #doc {
   max-width: 920px;
   margin: 0 auto;
@@ -232,7 +261,7 @@ body.toc-hidden #toc { display: none; }
 
 /* ---- print ---- */
 @media print {
-  #toolbar, #find-bar, #toc, #drop-overlay, #toast { display: none !important; }
+  #toolbar, #find-bar, #toc, #editor, #update-banner, #drop-overlay, #toast { display: none !important; }
   body, #layout, #content { overflow: visible !important; height: auto !important; display: block !important; }
   #doc { max-width: none; padding: 0; font-size: 11pt; }
   .markdown-body pre { white-space: pre-wrap; }
